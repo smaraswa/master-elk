@@ -80,9 +80,9 @@ spec:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - uspgh-neks-d3
-                      - uspgh-neks-d4
-                      - uspgh-neks-d5
+                      - uspgh-neks-p10.amer.thermo.com
+                      - uspgh-neks-p11.amer.thermo.com
+                      - uspgh-neks-p12.amer.thermo.com
       containers:
         - name: elasticsearch
           image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
