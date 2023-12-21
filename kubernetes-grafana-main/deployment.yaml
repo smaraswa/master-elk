@@ -47,6 +47,17 @@ spec:
       labels:
         app: grafana
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - uspgh-neks-p10.amer.thermo.com
+                      - uspgh-neks-p11.amer.thermo.com
+                      - uspgh-neks-p12.amer.thermo.com
       containers:
       - name: grafana
         image: grafana/grafana:latest
