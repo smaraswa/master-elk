@@ -7,12 +7,12 @@ metadata:
   namespace: monitoring
 spec:
   capacity:
-    storage: 10Gi
+    storage: 100Gi
   accessModes:
     - ReadWriteOnce
   storageClassName: standard
   hostPath:
-    path: /grafana_data/
+    path: /grafana_data
 
 ---
 
@@ -27,7 +27,7 @@ spec:
   storageClassName: standard
   resources:
     requests:
-      storage: 10Gi
+      storage: 100Gi
 
 ---
 
