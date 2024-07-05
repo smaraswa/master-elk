@@ -9,6 +9,9 @@ data:
     server.host: "0.0.0.0"
     elasticsearch.hosts: ["http://elasticsearch-0.elasticsearch:9200", "http://elasticsearch-1.elasticsearch:9200", "http://elasticsearch-2.elasticsearch:9200"]
     #elasticsearch.hosts: ["http://10.244.3.222:9200", "http://10.244.6.144:9200", "http://10.244.2.117:9200"]
+    server.ssl.enabled: true
+    server.ssl.certificate: /usr/share/kibana/config/certificates/kibana.crt
+    server.ssl.key: /usr/share/kibana/config/certificates/kibana.key
     
 
 ---
