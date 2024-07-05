@@ -11,7 +11,7 @@ data:
     server.ssl.enabled: true
     server.ssl.certificate: /usr/share/kibana/config/certificates/kibana.crt
     server.ssl.key: /usr/share/kibana/config/certificates/kibana.key
-    xpack.security.enabled: true
+    
 
 ---
 apiVersion: apps/v1
