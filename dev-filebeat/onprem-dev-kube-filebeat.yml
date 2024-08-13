@@ -11,7 +11,7 @@ data:
           - /var/log/pods/*/*/*.log
 
     output.elasticsearch:
-      hosts: ["uspgh-neks-p10.amer.thermo.com:31500", "uspgh-neks-p11.amer.thermo.com:31500", "uspgh-neks-p12.amer.thermo.com:31500"]
+      hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
       index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     setup.kibana:
@@ -44,7 +44,7 @@ spec:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
           securityContext:
-            runAsUser: 0  # Run as root to ensure it has the necessary permissions
+            runAsUser: 0
             allowPrivilegeEscalation: false
             capabilities:
               add: ["SYS_PTRACE"]
