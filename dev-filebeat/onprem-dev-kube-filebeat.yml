@@ -41,9 +41,13 @@ spec:
       labels:
         app: filebeat
     spec:
+      securityContext:
+        fsGroup: 0
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
+          securityContext:
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: varlog
               mountPath: /var/log
