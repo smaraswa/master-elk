@@ -6,9 +6,7 @@ metadata:
 data:
   filebeat.yml: |
     filebeat.inputs:
-      - type: log
-        paths:
-          - /var/log/*.log
+      
       - type: log
         paths:
           - /var/log/containers/*.log
