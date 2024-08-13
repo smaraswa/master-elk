@@ -9,11 +9,10 @@ data:
       - type: log
         paths:
           - /var/log/*.log
+          - /var/log/containers/*.log  # Include container logs
     output.elasticsearch:
-#      hosts: ["http://elasticsearch-0.elasticsearch:9200", "http://elasticsearch-1.elasticsearch:9200", "http://elasticsearch-2.elasticsearch:9200"]
       hosts: ["uspgh-neks-p10.amer.thermo.com:31500", "uspgh-neks-p11.amer.thermo.com:31500", "uspgh-neks-p12.amer.thermo.com:31500"]
 ---
-
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -23,7 +22,6 @@ spec:
   selector:
     matchLabels:
       app: filebeat
-  
   template:
     metadata:
       labels:
