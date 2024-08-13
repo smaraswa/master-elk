@@ -9,9 +9,24 @@ data:
       - type: log
         paths:
           - /var/log/*.log
-          - /var/log/containers/*.log  # Include container logs
+      - type: log
+        paths:
+          - /var/log/containers/*.log
+
     output.elasticsearch:
       hosts: ["uspgh-neks-p10.amer.thermo.com:31500", "uspgh-neks-p11.amer.thermo.com:31500", "uspgh-neks-p12.amer.thermo.com:31500"]
+      index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+
+    setup.kibana:
+      host: "10.0.146.250:5601"
+
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.ilm.overwrite: true
+
+    filebeat.config.modules:
+      path: /etc/filebeat/modules.d/*.yml
+      reload.enabled: false
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -22,6 +37,7 @@ spec:
   selector:
     matchLabels:
       app: filebeat
+  
   template:
     metadata:
       labels:
