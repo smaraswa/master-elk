@@ -9,6 +9,7 @@ data:
       - type: log
         paths:
           - /var/log/pods/*/*/*.log
+        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     output.elasticsearch:
       hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
