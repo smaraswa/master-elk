@@ -6,7 +6,6 @@ metadata:
 data:
   filebeat.yml: |
     filebeat.inputs:
-      
       - type: log
         paths:
           - /var/log/containers/*.log
@@ -25,6 +24,7 @@ data:
     filebeat.config.modules:
       path: /etc/filebeat/modules.d/*.yml
       reload.enabled: false
+
 ---
 apiVersion: apps/v1
 kind: DaemonSet
