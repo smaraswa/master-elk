@@ -35,7 +35,6 @@ spec:
   selector:
     matchLabels:
       app: filebeat
-  
   template:
     metadata:
       labels:
