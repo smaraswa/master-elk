@@ -118,8 +118,9 @@ rules:
   - apiGroups: [""]
     resources:
       - namespaces
-      - pods/log
+      - pods
       - nodes
+      - pods/log
     verbs: ["get", "list", "watch"]
 
 ---
