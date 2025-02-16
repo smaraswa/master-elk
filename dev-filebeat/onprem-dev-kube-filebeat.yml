@@ -7,10 +7,11 @@ data:
   filebeat.yml: |
     filebeat.inputs:
       - type: container
+        close_timeout: 2m
         paths:
           - /var/log/containers/*.log
           - /var/log/pods/*/*.log
-        multiline.pattern: '^\['
+        multiline.pattern: '^\d{4}-\d{2}-\d{2}'
         multiline.negate: true
         multiline.match: after
         processors:
@@ -32,6 +33,8 @@ data:
         - "http://uspgh-neks-p10.amer.thermo.com:31500"
         - "http://uspgh-neks-p11.amer.thermo.com:31500"
         - "http://uspgh-neks-p12.amer.thermo.com:31500"
+      bulk_max_size: 500
+      worker: 2
       index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     setup.kibana:
