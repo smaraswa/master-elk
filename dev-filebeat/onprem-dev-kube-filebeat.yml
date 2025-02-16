@@ -81,10 +81,15 @@ spec:
           image: docker.elastic.co/beats/filebeat:7.9.0
           securityContext:
             runAsUser: 0
+            runAsGroup: 0
             fsGroup: 0
-            allowPrivilegeEscalation: false
+            privileged: true
+            allowPrivilegeEscalation: true
             capabilities:
-              add: ["SYS_PTRACE"]
+              add: 
+                - SYS_ADMIN
+                - SYS_PTRACE
+                - DAC_READ_SEARCH
           env:
             - name: NODE_NAME
               valueFrom:
