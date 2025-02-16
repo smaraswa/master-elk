@@ -61,7 +61,7 @@ data:
               matchers:
                 - logs_path:
                     logs_path: "/var/log/pods/"
-
+    setup.ilm.enabled: false
     output.elasticsearch:
       hosts:
         - "http://uspgh-neks-p10.amer.thermo.com:31500"
