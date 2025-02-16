@@ -5,21 +5,30 @@ metadata:
   namespace: elk
 data:
   filebeat.yml: |
-    filebeat.inputs:
-      - type: log
-        paths:
-          - /var/log/pods/*/*/*.log
-        processors:
-          - add_kubernetes_metadata:
-              host: ${NODE_NAME}
-              matchers:
-                - logs_path:
-                    logs_path: "/var/log/pods/"
-          - drop_fields:
-              fields: ["log.file.path"]
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          templates:
+            - condition.contains:
+                kubernetes.namespace: ""
+              config:
+                - type: container
+                  paths:
+                    - /var/log/containers/*.log
+                  processors:
+                    - add_kubernetes_metadata:
+                        in_cluster: true
+                    - drop_fields:
+                        fields: ["log.file.path"]
+
+    processors:
+      - add_cloud_metadata: {}
+      - add_host_metadata: {}
 
     output.elasticsearch:
-      hosts: 
+      hosts:
         - "http://uspgh-neks-p10.amer.thermo.com:31500"
         - "http://uspgh-neks-p11.amer.thermo.com:31500"
         - "http://uspgh-neks-p12.amer.thermo.com:31500"
@@ -72,6 +81,9 @@ spec:
           volumeMounts:
             - name: varlog
               mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
             - name: config
               mountPath: /usr/share/filebeat/filebeat.yml
               subPath: filebeat.yml
@@ -79,6 +91,9 @@ spec:
         - name: varlog
           hostPath:
             path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
         - name: config
           configMap:
             name: filebeat-config
@@ -98,6 +113,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources:
+      - nodes
       - namespaces
       - pods
     verbs:
