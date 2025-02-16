@@ -8,6 +8,7 @@ data:
     filebeat.inputs:
       - type: container
         close_timeout: 2m
+        clean_removed: true
         paths:
           - /var/log/containers/*.log
           - /var/log/pods/*/*.log
