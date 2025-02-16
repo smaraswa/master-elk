@@ -58,7 +58,7 @@ spec:
     spec:
       containers:
         - name: fluentd
-          image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7
+          image: fluent/fluentd-kubernetes-daemonset:v1.16.5-debian-elasticsearch7-1.0
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
