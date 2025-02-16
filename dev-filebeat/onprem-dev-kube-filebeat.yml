@@ -6,21 +6,31 @@ metadata:
 data:
   filebeat.yml: |
     filebeat.inputs:
-      - type: log
+      - type: container
         paths:
           - /var/log/pods/*/*/*.log
-        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+        multiline.pattern: '^\['
+        multiline.negate: true
+        multiline.match: after
+        processors:
+          - add_kubernetes_metadata:
+              host: ${NODE_NAME}
+              matchers:
+                - logs_path:
+                    logs_path: "/var/log/pods/"
 
     output.elasticsearch:
-      hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
+      hosts: 
+        - "http://uspgh-neks-p10.amer.thermo.com:31500"
+        - "http://uspgh-neks-p11.amer.thermo.com:31500"
+        - "http://uspgh-neks-p12.amer.thermo.com:31500"
       index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     setup.kibana:
       host: "10.0.146.250:5601"
 
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.ilm.overwrite: trueuse kibana 
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
 
     filebeat.config.modules:
       path: /etc/filebeat/modules.d/*.yml
@@ -41,9 +51,15 @@ spec:
       labels:
         app: filebeat
     spec:
+      serviceAccountName: filebeat
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
