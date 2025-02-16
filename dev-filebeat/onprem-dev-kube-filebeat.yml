@@ -35,13 +35,11 @@ data:
     setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
     setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
     setup.template.enabled: true
-    setup.template.settings:
-      index.number_of_shards: 1
-      index.number_of_replicas: 1
     setup.ilm.overwrite: true
-
-    monitoring.enabled: true
-
+    filebeat.config.modules:
+      path: /etc/filebeat/modules.d/*.yml
+      reload.enabled: false
+    
     filebeat.autodiscover:
       providers:
         - type: kubernetes
