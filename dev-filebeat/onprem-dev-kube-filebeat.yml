@@ -1,77 +1,64 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fluentd-config
+  name: filebeat-config
   namespace: elk
 data:
-  fluent.conf: |
-    <source>
-      @type tail
-      path /var/log/pods/*/*/*.log
-      pos_file /var/log/fluentd-containers.log.pos
-      tag kubernetes.*
-      read_from_head true
-      <parse>
-        @type json
-        time_key time
-        time_format %Y-%m-%dT%H:%M:%S.%NZ
-      </parse>
-    </source>
+  filebeat.yml: |
+    filebeat.inputs:
+      - type: log
+        paths:
+          - /var/log/pods/*/*/*.log
+        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
-    <filter kubernetes.**>
-      @type record_transformer
-      <record>
-        namespace ${record["kubernetes"]["namespace_name"]}
-        pod_name ${record["kubernetes"]["pod_name"]}
-      </record>
-    </filter>
+    output.elasticsearch:
+      hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
+      index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
-    <match kubernetes.**>
-      @type elasticsearch
-      hosts ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
-      index_name onprem-kube-dev-os-mon-log-request-breakdown-000001
-      ssl_verify false
-      template_name onprem-kube-dev-os-mon-log-request-breakdown-000001
-      template_pattern onprem-kube-dev-os-mon-log-request-breakdown-000001
-      ilm_policy_id onprem-kube-dev-os-mon-log-request-breakdown-000001
-      ilm_policy_overwrite true
-      <buffer>
-        flush_interval 5s
-      </buffer>
-    </match>
+    setup.kibana:
+      host: "10.0.146.250:5601"
+
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.ilm.overwrite: trueuse kibana 
+
+    filebeat.config.modules:
+      path: /etc/filebeat/modules.d/*.yml
+      reload.enabled: false
 
 ---
-
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: fluentd
+  name: filebeat
   namespace: elk
 spec:
   selector:
     matchLabels:
-      app: fluentd
+      app: filebeat
   template:
     metadata:
       labels:
-        app: fluentd
+        app: filebeat
     spec:
       containers:
-        - name: fluentd
-          image: fluent/fluentd-kubernetes-daemonset:v1.16.5-debian-elasticsearch7-1.0
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:7.9.0
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
+            capabilities:
+              add: ["SYS_PTRACE"]
           volumeMounts:
             - name: varlog
               mountPath: /var/log
-            - name: fluentd-config
-              mountPath: /fluentd/etc/
-              subPath: fluent.conf
+            - name: config
+              mountPath: /usr/share/filebeat/filebeat.yml
+              subPath: filebeat.yml
       volumes:
         - name: varlog
           hostPath:
             path: /var/log
-        - name: fluentd-config
+        - name: config
           configMap:
-            name: fluentd-config
+            name: filebeat-config
