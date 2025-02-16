@@ -90,6 +90,8 @@ spec:
           volumeMounts:
             - name: varlog
               mountPath: /var/log
+            - name: containers
+              mountPath: /var/lib/docker/containers
               readOnly: true
             - name: config
               mountPath: /usr/share/filebeat/filebeat.yml
@@ -98,6 +100,9 @@ spec:
         - name: varlog
           hostPath:
             path: /var/log
+        - name: containers
+          hostPath:
+            path: /var/lib/docker/containers
         - name: config
           configMap:
             name: filebeat-config
