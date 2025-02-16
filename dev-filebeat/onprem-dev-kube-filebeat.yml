@@ -11,24 +11,31 @@ data:
           - /var/log/containers/*.log
         processors:
           - add_kubernetes_metadata:
-              in_cluster: true
+              host: ${NODE_NAME}
+              matchers:
+                - logs_path:
+                    logs_path: "/var/log/containers/"
           - decode_json_fields:
               fields: ["message"]
               target: "json"
               overwrite_keys: true
           - drop_fields:
               fields: ["host", "ecs.version"]
-    
+
     output.elasticsearch:
       hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
       index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+      indices:
+        - index: "onprem-kube-dev-os-mon-log-request-breakdown-%{+yyyy.MM.dd}"
+      setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown"
+      setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
+      setup.ilm.enabled: true
+      setup.ilm.rollover_alias: "onprem-kube-dev-os-mon-log-request-breakdown"
+      setup.ilm.policy_name: "onprem-kube-dev-os-mon-log-policy"
+      setup.ilm.overwrite: true
 
     setup.kibana:
-      host: "10.0.146.250:5601"
-
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.ilm.overwrite: true
+      host: "http://10.0.146.250:5601"
 
     monitoring.enabled: true
 
@@ -41,6 +48,15 @@ data:
             type: container
             paths:
               - /var/log/containers/*-${data.kubernetes.container.id}.log
+
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat.log
+      keepfiles: 7
+      permissions: 0644
+
 ---
 apiVersion: apps/v1
 kind: DaemonSet
