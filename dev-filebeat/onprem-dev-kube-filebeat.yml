@@ -1,119 +1,106 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: filebeat-config
+  name: fluentd-config
   namespace: elk
 data:
-  filebeat.yml: |
-    filebeat.autodiscover:
-      providers:
-        - type: kubernetes
-          node: ${NODE_NAME}
-          hints.enabled: true
-          templates:
-            - condition.contains:
-                kubernetes.namespace: ""
-              config:
-                - type: container
-                  paths:
-                    - /var/log/containers/*.log
-                  processors:
-                    - add_kubernetes_metadata:
-                        in_cluster: true
-                    - drop_fields:
-                        fields: ["log.file.path"]
+  fluentd.conf: |
+    <source>
+      @type tail
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      format json
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
+    </source>
 
-    processors:
-      - add_cloud_metadata: {}
-      - add_host_metadata: {}
+    # Kubernetes metadata enrichment
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+    </filter>
 
-    output.elasticsearch:
-      hosts:
-        - "http://uspgh-neks-p10.amer.thermo.com:31500"
-        - "http://uspgh-neks-p11.amer.thermo.com:31500"
-        - "http://uspgh-neks-p12.amer.thermo.com:31500"
-      index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    # Send logs to all Elasticsearch nodes
+    <match kubernetes.**>
+      @type elasticsearch
+      hosts ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
+      logstash_format true
+      logstash_prefix fluentd-kubernetes
+      include_tag_key true
+      flush_interval 5s
+    </match>
 
-    setup.kibana:
-      host: "10.0.146.250:5601"
-
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.ilm.overwrite: true
-
-    filebeat.config.modules:
-      path: /etc/filebeat/modules.d/*.yml
-      reload.enabled: false
+    # Configure Kibana for Fluentd
+    <match kubernetes.**>
+      @type copy
+      <store>
+        @type elasticsearch
+        hosts ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
+        logstash_format true
+        logstash_prefix fluentd-kubernetes
+      </store>
+      <store>
+        @type stdout
+      </store>
+    </match>
 
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: filebeat
+  name: fluentd
   namespace: elk
   labels:
-    app: filebeat
+    app: fluentd
 spec:
   selector:
     matchLabels:
-      app: filebeat
+      app: fluentd
   template:
     metadata:
       labels:
-        app: filebeat
+        app: fluentd
     spec:
-      serviceAccountName: filebeat-sa
+      serviceAccountName: fluentd-sa
       terminationGracePeriodSeconds: 30
       containers:
-        - name: filebeat
-          image: docker.elastic.co/beats/filebeat:7.9.0
-          args: ["-e", "-strict.perms=false"]
+        - name: fluentd
+          image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-elasticsearch7-1
           env:
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-          securityContext:
-            runAsUser: 0
-            allowPrivilegeEscalation: false
-            capabilities:
-              add: ["SYS_PTRACE"]
+            - name: FLUENT_ELASTICSEARCH_HOST
+              value: "uspgh-neks-p10.amer.thermo.com,uspgh-neks-p11.amer.thermo.com,uspgh-neks-p12.amer.thermo.com"
+            - name: FLUENT_ELASTICSEARCH_PORT
+              value: "31500"
+            - name: FLUENT_KIBANA_HOST
+              value: "10.0.146.250:5601"
           volumeMounts:
             - name: varlog
               mountPath: /var/log
-            - name: varlibdockercontainers
-              mountPath: /var/lib/docker/containers
-              readOnly: true
             - name: config
-              mountPath: /usr/share/filebeat/filebeat.yml
-              subPath: filebeat.yml
+              mountPath: /fluentd/etc/fluent.conf
+              subPath: fluentd.conf
       volumes:
         - name: varlog
           hostPath:
             path: /var/log
-        - name: varlibdockercontainers
-          hostPath:
-            path: /var/lib/docker/containers
         - name: config
           configMap:
-            name: filebeat-config
+            name: fluentd-config
 
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: filebeat-sa
+  name: fluentd-sa
   namespace: elk
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: filebeat-role
+  name: fluentd-role
 rules:
   - apiGroups: [""]
     resources:
-      - nodes
       - namespaces
       - pods
     verbs:
@@ -125,12 +112,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: filebeat-role-binding
+  name: fluentd-role-binding
 subjects:
   - kind: ServiceAccount
-    name: filebeat-sa
+    name: fluentd-sa
     namespace: elk
 roleRef:
   kind: ClusterRole
-  name: filebeat-role
+  name: fluentd-role
   apiGroup: rbac.authorization.k8s.io
