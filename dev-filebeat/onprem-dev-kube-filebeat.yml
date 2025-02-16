@@ -1,4 +1,47 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: elk
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: elk
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: elk
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: filebeat-config
@@ -20,7 +63,7 @@ data:
                     logs_path: "/var/log/pods/"
 
     output.elasticsearch:
-      hosts: 
+      hosts:
         - "http://uspgh-neks-p10.amer.thermo.com:31500"
         - "http://uspgh-neks-p11.amer.thermo.com:31500"
         - "http://uspgh-neks-p12.amer.thermo.com:31500"
