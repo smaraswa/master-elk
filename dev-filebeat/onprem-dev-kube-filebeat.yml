@@ -1,7 +1,86 @@
 apiVersion: v1
-kind: Namespace
+kind: ConfigMap
 metadata:
-  name: elk
+  name: filebeat-config
+  namespace: elk
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+      - type: log
+        paths:
+          - /var/log/pods/*/*/*.log
+        fields_under_root: true
+        fields:
+          type: "kubernetes_logs"
+        processors:
+          - add_kubernetes_metadata:
+              in_cluster: true
+          - add_host_metadata: ~
+          - add_cloud_metadata: ~
+    
+    output.elasticsearch:
+      hosts:
+        - "http://uspgh-neks-p10.amer.thermo.com:31500"
+        - "http://uspgh-neks-p11.amer.thermo.com:31500"
+        - "http://uspgh-neks-p12.amer.thermo.com:31500"
+      index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    
+    setup.ilm.enabled: false
+    setup.kibana:
+      host: "10.0.146.250:5601"
+
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+
+    filebeat.config.modules:
+      path: /etc/filebeat/modules.d/*.yml
+      reload.enabled: false
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: elk
+  labels:
+    app: filebeat
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+    spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:7.9.0
+          args: [
+            "-c", "/usr/share/filebeat/filebeat.yml",
+            "-e"
+          ]
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              add: ["SYS_PTRACE"]
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: config
+              mountPath: /usr/share/filebeat/filebeat.yml
+              subPath: filebeat.yml
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: config
+          configMap:
+            name: filebeat-config
 
 ---
 apiVersion: v1
@@ -18,13 +97,12 @@ metadata:
 rules:
   - apiGroups: [""]
     resources:
-      - pods
       - namespaces
-      - nodes
+      - pods
     verbs:
       - get
-      - list
       - watch
+      - list
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -39,85 +117,3 @@ roleRef:
   kind: ClusterRole
   name: filebeat
   apiGroup: rbac.authorization.k8s.io
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: filebeat-config
-  namespace: elk
-data:
-  filebeat.yml: |
-    filebeat.inputs:
-      - type: container
-        paths:
-          - /var/log/pods/*/*/*.log
-        multiline.pattern: '^\['
-        multiline.negate: true
-        multiline.match: after
-        processors:
-          - add_kubernetes_metadata:
-              host: ${NODE_NAME}
-              matchers:
-                - logs_path:
-                    logs_path: "/var/log/pods/"
-    setup.ilm.enabled: false
-    output.elasticsearch:
-      hosts:
-        - "http://uspgh-neks-p10.amer.thermo.com:31500"
-        - "http://uspgh-neks-p11.amer.thermo.com:31500"
-        - "http://uspgh-neks-p12.amer.thermo.com:31500"
-      index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-
-    setup.kibana:
-      host: "10.0.146.250:5601"
-
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
-
-    filebeat.config.modules:
-      path: /etc/filebeat/modules.d/*.yml
-      reload.enabled: false
-
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: filebeat
-  namespace: elk
-spec:
-  selector:
-    matchLabels:
-      app: filebeat
-  template:
-    metadata:
-      labels:
-        app: filebeat
-    spec:
-      serviceAccountName: filebeat
-      containers:
-        - name: filebeat
-          image: docker.elastic.co/beats/filebeat:7.9.0
-          env:
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-          securityContext:
-            runAsUser: 0
-            allowPrivilegeEscalation: false
-            capabilities:
-              add: ["SYS_PTRACE"]
-          volumeMounts:
-            - name: varlog
-              mountPath: /var/log
-            - name: config
-              mountPath: /usr/share/filebeat/filebeat.yml
-              subPath: filebeat.yml
-      volumes:
-        - name: varlog
-          hostPath:
-            path: /var/log
-        - name: config
-          configMap:
-            name: filebeat-config
