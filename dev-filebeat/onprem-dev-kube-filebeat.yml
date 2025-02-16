@@ -32,8 +32,8 @@ data:
     setup.kibana:
       host: "10.0.146.250:5601"
 
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
     setup.template.enabled: true
     setup.template.settings:
       index.number_of_shards: 1
