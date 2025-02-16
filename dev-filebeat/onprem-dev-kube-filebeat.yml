@@ -32,14 +32,13 @@ data:
     setup.kibana:
       host: "10.0.146.250:5601"
 
-    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.enabled: true
-    setup.ilm.overwrite: true
-    filebeat.config.modules:
-      path: /etc/filebeat/modules.d/*.yml
-      reload.enabled: false
-    
+    setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
+    setup.template.settings:
+      index.number_of_shards: 1
+      index.number_of_replicas: 1
+    setup.ilm.enabled: false
+
     filebeat.autodiscover:
       providers:
         - type: kubernetes
@@ -48,7 +47,10 @@ data:
           hints.default_config:
             type: container
             paths:
-              - /var/log/containers/*-${data.kubernetes.container.id}.log
+              - /var/log/containers/*-*.log
+          processors:
+            - add_kubernetes_metadata:
+                in_cluster: true
 
 ---
 apiVersion: apps/v1
