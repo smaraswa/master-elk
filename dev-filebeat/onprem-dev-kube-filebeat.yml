@@ -1,4 +1,3 @@
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,21 +10,21 @@ data:
         paths:
           - /var/log/containers/*.log
         stream: all
-        close_inactive: 1h  # Prevents closing active logs too soon
-        ignore_older: 24h   # Ignore logs older than 24h
-        scan_frequency: 10s  # Scan logs every 10 seconds
+        close_inactive: 1h
+        ignore_older: 24h
+        scan_frequency: 10s
         processors:
           - add_kubernetes_metadata:
               in_cluster: true
               host: ${NODE_NAME}
               matchers:
                 - logs_path:
-                     logs_path: "/var/log/containers/"
+                    logs_path: "/var/log/containers/"
           - drop_event:
               when:
                 not:
                   equals:
-                    kubernetes.namespace: "globalgateway"  # Filter logs only for globalgateway namespace
+                    kubernetes.namespace: "globalgateway"
 
     output.elasticsearch:
       hosts: 
@@ -55,10 +54,6 @@ data:
             type: container
             paths:
               - /var/log/containers/*-*.log
-          processors:
-            - add_kubernetes_metadata:
-                in_cluster: true
-
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -92,8 +87,6 @@ spec:
           volumeMounts:
             - name: varlog
               mountPath: /var/log
-            - name: containers
-              mountPath: /var/lib/docker/containers
               readOnly: true
             - name: config
               mountPath: /usr/share/filebeat/filebeat.yml
@@ -102,14 +95,11 @@ spec:
         - name: varlog
           hostPath:
             path: /var/log
-        - name: containers
-          hostPath:
-            path: /var/lib/docker/containers
         - name: config
           configMap:
             name: filebeat-config
-
 ---
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
