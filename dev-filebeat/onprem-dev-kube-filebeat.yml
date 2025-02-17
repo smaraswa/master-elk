@@ -21,11 +21,7 @@ data:
               matchers:
                 - logs_path:
                     logs_path: "/var/log/containers/"
-          - drop_event:
-              when:
-                not:
-                  equals:
-                    kubernetes.namespace: "globalgateway"
+      
 
     output.elasticsearch:
       hosts: 
