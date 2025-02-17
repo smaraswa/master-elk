@@ -1,41 +1,23 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: filebeat-config
   namespace: elk
+  labels:
+    k8s-app: filebeat
 data:
-  filebeat.yml: |
-    filebeat.autodiscover:
-      providers:
-        - type: kubernetes
-          hints.enabled: true
-          include_annotations: ["artifact.spinnaker.io/name", "ad.datadoghq.com/tags"]
-          include_labels: ["app.kubernetes.io/name"]
-          labels.dedot: true
-          annotations.dedot: true
-          templates:
-            - condition:
-                equals:
-                  kubernetes.namespace: myapp
-              config:
-                - type: container
-                  paths:
-                    - /var/log/pods/*/*/*.log
-                  multiline:
-                    pattern: '^[A-Za-z]+ [0-9]{1,2} (?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-                    negate: true
-                    match: after
-            - condition:
-                equals:
-                  kubernetes.namespace: elasticsearch
-              config:
-                - type: container
-                  paths:
-                    - /var/log/pods/*/*/*.log
-                  multiline:
-                    pattern: '^\[[0-9]{4}-[0-9]{2}-[0-9]{2}|^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
-                    negate: true
-                    match: after
+  filebeat.yml: |-
+    filebeat.config:
+      inputs:
+        path: ${path.config}/inputs.d/*.yml
+        reload.enabled: false
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload.enabled: false
+
+    processors:
+      - add_cloud_metadata:
 
     output.elasticsearch:
       hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
@@ -45,56 +27,119 @@ data:
       host: "10.0.146.250:5601"
 
     setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
-    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+    setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-*"
     setup.ilm.overwrite: true
 
-    filebeat.config.modules:
-      path: /etc/filebeat/modules.d/*.yml
-      reload.enabled: false
-
-    processors:
-      - add_cloud_metadata: ~
-      - drop_fields:
-          when:
-            has_fields: ['kubernetes.labels.app']
-          fields:
-            - 'kubernetes.labels.app'
-
-    logging.level: debug  # Enable debug logs for troubleshooting
-
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-inputs
+  namespace: elk
+  labels:
+    k8s-app: filebeat
+data:
+  kubernetes.yml: |-
+    - type: log
+      paths:
+        - /var/log/pods/*/*/*.log
+      processors:
+        - add_kubernetes_metadata:
+            in_cluster: true
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: filebeat
   namespace: elk
+  labels:
+    k8s-app: filebeat
 spec:
   selector:
     matchLabels:
-      app: filebeat
+      k8s-app: filebeat
   template:
     metadata:
       labels:
-        app: filebeat
+        k8s-app: filebeat
     spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
+          args: ["-c", "/etc/filebeat.yml", "-e"]
           securityContext:
             runAsUser: 0
-            allowPrivilegeEscalation: false
-            capabilities:
-              add: ["SYS_PTRACE"]
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
           volumeMounts:
-            - name: varlog
-              mountPath: /var/log
             - name: config
-              mountPath: /usr/share/filebeat/filebeat.yml
+              mountPath: /etc/filebeat.yml
               subPath: filebeat.yml
+              readOnly: true
+            - name: inputs
+              mountPath: /usr/share/filebeat/inputs.d
+              readOnly: true
+            - name: data
+              mountPath: /usr/share/filebeat/data
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
       volumes:
-        - name: varlog
-          hostPath:
-            path: /var/log
         - name: config
           configMap:
             name: filebeat-config
+            defaultMode: 0600
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: inputs
+          configMap:
+            name: filebeat-inputs
+            defaultMode: 0600
+        - name: data
+          hostPath:
+            path: /var/lib/filebeat-data
+            type: DirectoryOrCreate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: elk
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+  labels:
+    k8s-app: filebeat
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+    verbs:
+      - get
+      - watch
+      - list
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: elk
+  labels:
+    k8s-app: filebeat
