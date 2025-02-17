@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,29 +10,18 @@ data:
       - type: container
         paths:
           - /var/log/containers/*.log
-        stream: all  # Capture both stdout & stderr
+        stream: all
+        close_inactive: 1h  # Prevents closing active logs too soon
+        ignore_older: 24h   # Ignore logs older than 24h
+        scan_frequency: 10s  # Scan logs every 10 seconds
         processors:
           - add_kubernetes_metadata:
               in_cluster: true
-              host: ${NODE_NAME}
-              matchers:
-                - logs_path:
-                    logs_path: "/var/log/containers/"
           - drop_event:
               when:
                 not:
                   equals:
-                    kubernetes.namespace: "globalgateway"
-          - decode_json_fields:
-              fields: ["message"]
-              target: "json"
-              overwrite_keys: true
-          - add_fields:
-              target: "kubernetes"
-              fields:
-                namespace: "${KUBERNETES_NAMESPACE}"
-          - drop_fields:
-              fields: ["host", "ecs.version"]
+                    kubernetes.namespace: "globalgateway"  # Filter logs only for globalgateway namespace
 
     output.elasticsearch:
       hosts: 
@@ -60,7 +50,7 @@ data:
           hints.default_config:
             type: container
             paths:
-              - /var/log/containers/*.log
+              - /var/log/containers/*-*.log
           processors:
             - add_kubernetes_metadata:
                 in_cluster: true
@@ -95,8 +85,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: KUBERNETES_NAMESPACE
-              value: "globalgateway"
           volumeMounts:
             - name: varlog
               mountPath: /var/log
