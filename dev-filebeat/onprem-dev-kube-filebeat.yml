@@ -21,6 +21,14 @@ data:
               matchers:
                 - logs_path:
                     logs_path: "/var/log/containers/"
+          - drop_event:
+              when:
+                not:
+                  or:
+                    - equals:
+                       kubernetes.namespace: "globalgateway"
+                    - equals:
+                       kubernetes.namespace: "default"  # Optional: include default namespace or others as needed
       
 
     output.elasticsearch:
