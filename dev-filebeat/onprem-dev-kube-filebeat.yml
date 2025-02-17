@@ -10,7 +10,7 @@ data:
         paths:
           - /var/log/containers/*.log
         stream: all
-        close_inactive: 1h
+        close_inactive: 24h
         ignore_older: 24h
         scan_frequency: 10s
         processors:
