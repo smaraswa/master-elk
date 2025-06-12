@@ -11,14 +11,13 @@ data:
         enabled: true
         paths:
          - /var/log/containers/*.log
-        exclude_files: ['.*_metering_metric.*.log.*']
-        ignore_older: 24h
-        close_inactive: 10s
-        harvester_limit: 20
-        harvester_buffer_size: 1024
-        multiline.pattern: '^\['
-        multiline.negate: true
+        stream: all
+        multiline.pattern: '^\s'
+        multiline.negate: false
         multiline.match: after
+        processors:
+          - add_kubernetes_metadata: {}
+       
         fields:
           log_type: pod_log
           source: kubernetes
