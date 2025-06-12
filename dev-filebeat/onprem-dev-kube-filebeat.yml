@@ -80,7 +80,7 @@ spec:
       labels:
         app: filebeat
     spec:
-      serviceAccountName: filebeat  # 🔐 Add this line
+      serviceAccountName: filebeat-sa
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
@@ -103,21 +103,36 @@ spec:
                 fieldRef:
                   fieldPath: metadata.labels['app']
             - name: APP_REGION
-              value: "us-east-1"  # <- Replace if different
+              value: "us-east-1"
             - name: DEPLOYMENT_ID
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.labels['deployment']  # <- Optional; adjust or hardcode if not present
+                  fieldPath: metadata.labels['deployment']
           volumeMounts:
-            - name: varlog
-              mountPath: /var/log
             - name: config
               mountPath: /usr/share/filebeat/filebeat.yml
               subPath: filebeat.yml
+            - name: varlog
+              mountPath: /var/log
+            - name: containers
+              mountPath: /var/log/containers
+            - name: pods
+              mountPath: /var/log/pods
+            - name: docker
+              mountPath: /var/lib/docker/containers
       volumes:
-        - name: varlog
-          hostPath:
-            path: /var/log
         - name: config
           configMap:
             name: filebeat-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: containers
+          hostPath:
+            path: /var/log/containers
+        - name: pods
+          hostPath:
+            path: /var/log/pods
+        - name: docker
+          hostPath:
+            path: /var/lib/docker/containers
