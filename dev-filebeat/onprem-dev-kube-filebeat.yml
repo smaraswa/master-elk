@@ -6,13 +6,53 @@ metadata:
 data:
   filebeat.yml: |
     filebeat.inputs:
+      # --- Pod Logs (Generic)
       - type: log
+        enabled: true
         paths:
           - /var/log/pods/*/*/*.log
-        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+        exclude_files: ['.*_metering_metric.*.log.*']
+        ignore_older: 24h
+        close_inactive: 10s
+        harvester_limit: 20
+        harvester_buffer_size: 1024
+        multiline.pattern: '^\['
+        multiline.negate: true
+        multiline.match: after
+        fields:
+          log_type: pod_log
+          source: kubernetes
+          env_id: "${ENV_ID}"
+          app_id: "${APP_NAME}"
+          worker_id: "${POD_NAME}"
+          app_region: "${APP_REGION}"
+          deployment_id: "${DEPLOYMENT_ID}"
+          replica_id: "${POD_NAME}"
+          log_subtype: kube
+          runtime: k8s
+
+      # --- Metric Logs (Optional, like Mule metering)
+      - type: log
+        enabled: true
+        paths:
+          - /var/log/pods/*/*/*metric.log*
+        exclude_files: ['.*_metering_metric.*.log.*']
+        ignore_older: 24h
+        close_inactive: 10s
+        harvester_limit: 20
+        harvester_buffer_size: 1024
+        fields:
+          log_type: metric
+          runtime: k8s
+
+    processors:
+      - drop_fields.fields: ["host.name", "host", "input", "log"]
 
     output.elasticsearch:
-      hosts: ["http://uspgh-neks-p10.amer.thermo.com:31500", "http://uspgh-neks-p11.amer.thermo.com:31500", "http://uspgh-neks-p12.amer.thermo.com:31500"]
+      hosts:
+        - "http://uspgh-neks-p10.amer.thermo.com:31500"
+        - "http://uspgh-neks-p11.amer.thermo.com:31500"
+        - "http://uspgh-neks-p12.amer.thermo.com:31500"
       index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     setup.kibana:
@@ -49,6 +89,25 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               add: ["SYS_PTRACE"]
+          env:
+            - name: ENV_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: APP_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app']
+            - name: APP_REGION
+              value: "us-east-1"  # <- Replace if different
+            - name: DEPLOYMENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['deployment']  # <- Optional; adjust or hardcode if not present
           volumeMounts:
             - name: varlog
               mountPath: /var/log
