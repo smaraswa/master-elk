@@ -26,7 +26,7 @@ data:
           app_id: "${APP_NAME}"
           worker_id: "${POD_NAME}"
           app_region: "${APP_REGION}"
-          deployment_id: "${DEPLOYMENT_ID}"
+          
           replica_id: "${POD_NAME}"
           log_subtype: kube
           runtime: k8s
