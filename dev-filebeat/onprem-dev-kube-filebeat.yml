@@ -6,46 +6,16 @@ metadata:
 data:
   filebeat.yml: |
     filebeat.inputs:
-      # --- Pod Logs (Generic)
-      - type: log
-        enabled: true
+      - type: container
         paths:
-         - /var/log/containers/*.log
-        stream: all
-        multiline.pattern: '^\s'
+          - /var/log/containers/*.log
+        multiline.pattern: '^[[:space:]]+(at|\.{3})\b|^Caused by:'
         multiline.negate: false
         multiline.match: after
         processors:
-          - add_kubernetes_metadata: {}
-       
-        fields:
-          log_type: pod_log
-          source: kubernetes
-          env_id: "${ENV_ID}"
-          app_id: "${APP_NAME}"
-          worker_id: "${POD_NAME}"
-          app_region: "${APP_REGION}"
-          
-          replica_id: "${POD_NAME}"
-          log_subtype: kube
-          runtime: k8s
-
-      # --- Metric Logs (Optional, like Mule metering)
-      - type: log
-        enabled: true
-        paths:
-          - /var/log/pods/*/*/*metric.log*
-        exclude_files: ['.*_metering_metric.*.log.*']
-        ignore_older: 24h
-        close_inactive: 10s
-        harvester_limit: 20
-        harvester_buffer_size: 1024
-        fields:
-          log_type: metric
-          runtime: k8s
-
-    processors:
-      - drop_fields.fields: ["host.name", "host", "input", "log"]
+          - add_kubernetes_metadata:
+              in_cluster: true
+        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
 
     output.elasticsearch:
       hosts:
@@ -64,7 +34,6 @@ data:
     filebeat.config.modules:
       path: /etc/filebeat/modules.d/*.yml
       reload.enabled: false
-
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -89,25 +58,6 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               add: ["SYS_PTRACE"]
-          env:
-            - name: ENV_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: APP_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['app']
-            - name: APP_REGION
-              value: "us-east-1"
-            - name: DEPLOYMENT_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['deployment']
           volumeMounts:
             - name: config
               mountPath: /usr/share/filebeat/filebeat.yml
@@ -136,3 +86,36 @@ spec:
         - name: docker
           hostPath:
             path: /var/lib/docker/containers
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat-sa
+  namespace: elk
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat-role
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+      - nodes
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat-role-binding
+roleRef:
+  kind: ClusterRole
+  name: filebeat-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: filebeat-sa
+    namespace: elk
+
