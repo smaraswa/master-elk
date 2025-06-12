@@ -10,7 +10,7 @@ data:
       - type: log
         enabled: true
         paths:
-          - /var/log/pods/*/*/*.log
+         - /var/log/containers/*.log
         exclude_files: ['.*_metering_metric.*.log.*']
         ignore_older: 24h
         close_inactive: 10s
