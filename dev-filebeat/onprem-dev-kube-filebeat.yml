@@ -32,6 +32,8 @@ data:
     setup.template.name: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
     setup.template.pattern: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
     setup.ilm.overwrite: true
+    setup.ilm.enabled: false
+
 
     filebeat.config.modules:
       path: /etc/filebeat/modules.d/*.yml
