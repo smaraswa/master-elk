@@ -80,6 +80,7 @@ spec:
       labels:
         app: filebeat
     spec:
+      serviceAccountName: filebeat  # 🔐 Add this line
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:7.9.0
