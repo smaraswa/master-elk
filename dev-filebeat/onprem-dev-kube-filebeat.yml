@@ -15,7 +15,9 @@ data:
         processors:
           - add_kubernetes_metadata:
               in_cluster: true
-        index: "onprem-kube-dev-os-mon-log-request-breakdown-000001"
+              matchers:
+                - logs_path:
+                    logs_path: "/var/log/containers/"
 
     output.elasticsearch:
       hosts:
@@ -34,6 +36,7 @@ data:
     filebeat.config.modules:
       path: /etc/filebeat/modules.d/*.yml
       reload.enabled: false
+
 ---
 apiVersion: apps/v1
 kind: DaemonSet
